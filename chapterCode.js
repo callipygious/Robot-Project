@@ -90,3 +90,38 @@ const mailRoute = [ //Mail route, specific path for a mail bot to take to reach 
   "Grete's House", "Shop", "Grete's House", "Farm",
   "Marketplace", "Post Office"
 ];
+
+function routeRobot(state, memory) {  //Mail Bot that uses specific route to deliver all packages.
+  if (memory.length == 0) { //Check if there are any locations saved in memory.
+    memory = mailRoute; //If not, saves the mail route list of all locations in town as the bot's memory
+  }
+  return {direction: memory[0], memory: memory.slice(1)}; //Move to the first location on the route list, then save the remainder of the list as a new memory list.
+}
+runRobot(VillageState.random(), routeRobot, []);  //Much better than random, moving thru all 13 locations up to 2x makes the bot take a maximum of 26 turns to complete.
+
+function findRoute(graph, from, to) { //Pathfinding search problem. Finding shortest route from a to b.
+  let work = [{at: from, route: []}]; //List of places that should be explored next, along with the route that got there. Starts with just start position and empty route.
+  for (let i = 0; i < work.length; i++) { //
+    let {at, route} = work[i];
+    for (let place of graph[at]) {  //Looking at graph of town, check all the locations accessible from the curent place
+      if (place == to) return route.concat(place);  //If this location is the goal, return the complete route leading to this place!
+      if (!work.some(w => w.at == place)) {  //If this location hasnt been checked before (this place isnt in the work list's "at" values yet...)
+        work.push({at: place, route: route.concat(place)}); //Add this new location to the list with new complete corresponding route
+      }
+    }
+  } //"Web of known routes crawling out from the start location, growing evenly on all sides but never tangling back into itself. As soon as the first thread reaches the goal location, that thread is traced back to the start, giving the correct route."
+}
+
+function goalOrientedRobot ({place, parcels}, route) {  //Robot that uses the pathfinding function
+  if (route.length == 0) {  //If no route in memory...
+    let parcel = parcels[0];  //choose the first parcel in the map to look for.
+    if (parcel.place != place) {  //If parcel isn't on the bot's person...
+      route = findRoute (roadGraph, place, parcel.place); //Use pathfinding function to find shortest route to the parcel
+    } else {
+      route = findRoute(roadGraph, place, parcel.address);  //If the bot has the parcel, use pathfinder to find route to the destination of the parcel.
+    }
+  }
+  return {direction: route[0], memory: route.slice(1)}; //Moves in first step of route, saves the remainder of the route to memory.
+}
+
+runRobot(VillageState.random(), goalOrientedRobot, []);
